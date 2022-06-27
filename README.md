@@ -1,2 +1,2 @@
-# mescamit
-Variable memory scanner mitigation
+# Mescamit
+Variable memory scanner mitigation for C++
