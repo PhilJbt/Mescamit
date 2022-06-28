@@ -1,6 +1,6 @@
 # PRESENTATION
-**Mescamit** is a variable obfuscator written in C++20.\
-It is useful as memory scanner mitigation, thread safe.
+**Mescamit** is a thread safe variable obfuscator written in C++20.\
+It is useful as memory scanner mitigation.
 
 &nbsp;
 
