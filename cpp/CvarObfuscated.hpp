@@ -8,48 +8,55 @@
 
 
 /*
-** HOW IT WORKS
 
-    The CvarObfuscated class stores a VALUE into an obfuscated array using a randomly generated KEY.
-    +--------------+
-    | KEY or VALUE |
-    +--------------+
+**
+** HOW THE VALUE IS PROCESSED
+*
+* How a VALUE is paired with a random key.
+* class CvarObfuscated
+**
 
-    Two noise data sequences of random lengths are added as prefix and postfix of the stored KEY or VALUE.
-    +--...--+--------------+--...--+
-    | NOISE | KEY or VALUE | NOISE |
-    +--...--+--------------+--...--+
-
-    Also, the address pointer stored does not point directly to the stored array, but to multiple others pointers (as a linked list), the last of the list is the array.
-    POINTER --> HOP --> HOP --> +--...--+--------------+--...--+
-                                | NOISE | KEY or VALUE | NOISE |
-                                +--...--+--------------+--...--+
-
-    Its POINTER address, LENGTH, HOP number and OFFSET are stored as integers, also obfuscated with differents randomly generated keys (CvarMasked).
-    Using the same process, a randomly generated KEY is used to reverse the obfuscation of the stored VALUE.
+    The CvarObfuscated class stores a VALUE into an obfuscated array,
+    and generated a randomly generated KEY of a random length for byte to byte XORing.
     
+    Two random length sequences with data NOISE are added as prefix and postfix of the stored VALUE.
+    
+    Also, the address POINTER stored does not point directly to the VALUE memory buffer,
+    but point to several other pointers (as a linked list, each node is called HOP). The last of the list is the VALUE or KEY array.
+    
+    Using the same process, a randomly generated KEY is used to reverse the obfuscation of the stored VALUE.
 
-    CvarObfuscated, VALUE and KEY are stored this way:
+    The stored VALUE is never directly deobfuscated, only the returned value is.
 
-    KEY and VALUE arrays are the same length.
+    Four informations are stored for each VALUE and KEY (CvarMasked).
+        1. The POINTER address casted to an integer (m_mvValPtr and m_mvKeyPtr)
+        2. The number of HOP from the first pointer to the VALUE or KEY memory buffer (m_mvValHopNbr and m_mvKeyHopNbr)
+        3. The OFFSET in bytes between the pointing POINTER  (m_mvValOffset and m_mvKeyOffset)
+        4. The LENGTH in bytes of the array (m_mvValSize and m_mvKeySize)
 
-    +--- KEY or VALUE POINTER (m_mvKeyPtr or m_mvValPtr)
-    |
-    |       +--- KEY or VALUE OFFSET (m_mvKeyOffset or m_mvValOffset)
-    |       |
-    v       v
-    +--...--+--------------+--...--+
-    | NOISE | KEY or VALUE | NOISE |
-    +--...--+--------------+--...--+
-             <-+---------->
-               | 
-               | KEY or VALUE LENGTH (m_mvKeySize or m_mvValSize)
+        +--- 1. KEY or VALUE POINTER (m_mvKeyPtr or m_mvValPtr)
+        |
+        |                  +--- 2. HOP number (m_mvValHopNbr and m_mvKeyHopNbr)
+        |                  |
+        |                  |                    +--- 4. KEY or VALUE OFFSET (m_mvKeyOffset or m_mvValOffset)
+        |                  |                    |
+        |                  |                    v
+        v                  v            +--...--+--------------+--...--+
+        POINTER -> HOP -> ... -> HOP -> | NOISE | KEY or VALUE | NOISE |
+                                        +--...--+--------------+--...--+
+                                                <-+---------->
+                                                  | 3. KEY or VALUE LENGTH (m_mvKeySize or m_mvValSize)
 
 
-    CvarMasked, VALUE and KEY specifications are stored this way:
+**
+** HOW THE SPECIFICATIONS OF THE VALUE AND THE KEY ARE STORED
+* 
+* How the POINTER, the LENGTH, the HOP number and the OFFSET of a value or key are stored.
+* class CvarMasked
+**
 
-    KEY is the same length of VALUE.
-    VALUE uses KEY and the xor logical operation to be obfuscated.
+    KEY is the same length of VALUE, both are builtin type (mostly uintptr_t or uint32_t).
+    VALUE uses KEY and the XOR ^ logical operation to be obfuscated / deobfuscated.
 
     +----...----+
     |   VALUE   |
@@ -73,7 +80,7 @@
 
 /*
 ** CvarMasked
-* Obfuscate pointers addresses or CvarObfuscated's values (int32_t or uinptr_t)
+* Obfuscate pointers addresses or specifications (i.e. length, offset, hop number) (int32_t or uinptr_t)
 */
 template <typename T>
 class CvarMasked {
@@ -109,20 +116,65 @@ public:
         _flush();
     }
 
-    // Assign a value (CvarObfuscated = rval)
+    // Getter
+    operator T() {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return _get();
+    }
+
+
+    /*
+    ** Assignment Operators
+    */
+
+    // = Assignation
     T operator=(const T &_val) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         _set(_val);
         return _val;
     }
 
-    // Get the value (lval = CvarObfuscated)
-    operator T() {
+
+    /*
+    ** Arithmetic Operators
+    */
+
+    // + Addition
+    T operator + (const T &_val) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        return _get();
+        return (_get() + _val);
     }
 
-    // Compound operator addition +=
+    // - Subtraction
+    T operator - (const T &_val) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return (_get() - _val);
+    }
+
+    // * Multiplication
+    T operator * (const T &_val) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return (_get() * _val);
+    }
+
+    // / Division
+    T operator / (const T &_val) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return (_get() / _val);
+    }
+
+    // % Modulo operation (Remainder after division)
+    T operator % (const T &_val) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return (_get() % _val);
+    }
+
+
+    /*
+    ** Arithmetic Compound Assignment Operators
+    */
+
+    // += Addition
     T operator += (const T &_val) {
         if constexpr (std::is_same_v<T, std::string>) {
             const std::lock_guard<std::mutex> lock(m_mtx);
@@ -140,159 +192,136 @@ public:
         }
     }
 
-    // Compound operator substract -=
+    // -= Subtraction
     T operator -= (const T &_val) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val -= _val;
+        T val(_get() - _val);
         _set(val);
         return val;
     }
 
-    // Compound operator multiply *=
+    // *= Division
     T operator *= (const T &_val) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val *= _val;
+        T val(_get() * _val);
         _set(val);
         return val;
     }
 
-    // Compound operator divide /=
+    // /= Division
     T operator /= (const T &_val) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val /= _val;
-        _set(val);
-        return val;
-    }
-
-    // Compound bitwise operator |=
-    T operator |= (int _iMask) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val |= _iMask;
-        _set(val);
-        return val;
-    }
-
-    // Compound bitwise operator &=
-    T operator &= (int _iMask) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val &= _iMask;
-        _set(val);
-        return val;
-    }
-
-    // Compound bitwise operator ^=
-    T operator ^= (int _iMask) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val ^= _iMask;
-        _set(val);
-        return val;
-    }
-
-    // Unary operator addition +
-    T operator + (const T &_val) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() + _val);
-        return val;
-    }
-
-    // Unary operator substract -
-    T operator - (const T &_val) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() - _val);
-        return val;
-    }
-
-    // Unary operator multiply *
-    T operator * (const T &_val) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() * _val);
-        return val;
-    }
-
-    // Unary operator divide /
-    T operator / (const T &_val) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() / _val);
+        _set(val);
         return val;
     }
 
-    // Bitwise operator |
-    T operator | (int _iMask) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() | _iMask);
-        return val;
-    }
 
-    // Bitwise operator &
+    /**
+    ** Bitwise Operators
+    */
+
+    // & Bitwise AND
     T operator & (int _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() & _iMask);
-        return val;
+        return (_get() & _iMask);
     }
 
-    // Bitwise operator ^
+    // | Bitwise OR
+    T operator | (int _iMask) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        return (_get() | _iMask);
+    }
+
+    // ^ Bitwise XOR
     T operator ^ (int _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() ^ _iMask);
         return val;
     }
-
-    // Unary prefix incrementation operator ++
-    T operator ++ () {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        ++val;
-        _set(val);
-        return val;
-    }
-
-    // Unary postfix incrementation operator ++
-    T operator ++ (int) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val++;
-        _set(val);
-        return val;
-    }
-
-    // Unary prefix decrementation operator --
-    T operator -- () {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        --val;
-        _set(val);
-        return val;
-    }
-
-    // Unary postfix decrementation operator --
-    T operator -- (int) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get());
-        val--;
-        _set(val);
-        return val;
-    }
-
-    // Shift bitwise operator <<
+    
+    // << Bitwise shift left
     T operator << (int _i) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() << _i);
-        return val;
+        return (_get() << _i);
     }
 
-    // Shift bitwise operator >>
+    // >> Bitwise shift right
     T operator >> (int _i) {
         const std::lock_guard<std::mutex> lock(m_mtx);
-        T val(_get() >> _i);
+        return (_get() >> _i);
+    }
+
+
+    /**
+    ** Bitwise Compound Assignment Operators
+    */
+
+    // &= Bitwise Compound Assignment AND
+    T operator &= (int _iMask) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() & _iMask);
+        _set(val);
         return val;
     }
 
+    // ^= Bitwise Compound Assignment XOR
+    T operator ^= (int _iMask) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() ^ _iMask);
+        _set(val);
+        return val;
+    }
+
+    // |= Bitwise Compound Assignment OR
+    T operator |= (int _iMask) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() | _iMask);
+        _set(val);
+        return val;
+    }
+
+
+    /*
+    ** Increment and Decrement Operators
+    */
+
+    // ++ Increment prefix
+    T operator ++ () {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() + 1);
+        _set(val);
+        return val;
+    }
+
+    // ++ Increment postfix
+    T operator ++ (int) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() + 1);
+        _set(val);
+        return val;
+    }
+
+    // -- Decrement prefix
+    T operator -- () {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() - 1 );
+        _set(val);
+        return val;
+    }
+
+    // -- Decrement postfix
+    T operator -- (int) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
+        T val(_get() - 1);
+        _set(val);
+        return val;
+    }
+
+
+    /*
+    ** Relational Operators
+    */
 
     template<class R> struct is_vector : public std::false_type {};
     template<class R> struct is_map : public std::false_type {};
@@ -303,68 +332,71 @@ public:
     template<class R, class S, class Alloc>
     struct is_map<std::map<R, S, Alloc>> : public std::true_type {};
 
-    // Comparison operator ==
+    // == Is equal to
     bool operator == (const T &_vr) {
+        // If the right value is a std::vector
         if constexpr (is_vector<T>::value) {
             const std::lock_guard<std::mutex> lock(m_mtx);
-            T vl(_get());
-            T vr(_vr);
-            return (vl == vr);
+            return (_get() == _vr);
         }
+        // If the right value is a std::map
         else if constexpr (is_map<T>::value) {
             const std::lock_guard<std::mutex> lock(m_mtx);
-            T vl(_get());
-            T vr(_vr);
-            return(vl == vr);
+            return(_get() == _vr);
         }
+        // If the right value can be compared byte to byte
         else {
             const std::lock_guard<std::mutex> lock(m_mtx);
             int iSize(sizeof(T));
             T vl(_get());
-            T vr(_vr);
-            return (::memcmp(&vl, &vr, iSize) == 0);
+            return (::memcmp(&vl, &_vr, iSize) == 0);
         }
     }
 
-    // Comparison operator !=
+    // != Not equal to
     bool operator != (const T &_vr) {
+        // If the right value is a std::vector
         if constexpr (is_vector<T>::value) {
             const std::lock_guard<std::mutex> lock(m_mtx);
-            T vl(_get());
-            T vr(_vr);
-            return (vl != vr);
+            return (_get() != _vr);
         }
+        // If the right value is a std::map
         else if constexpr (is_map<T>::value) {
             const std::lock_guard<std::mutex> lock(m_mtx);
-            T vl(_get());
-            T vr(_vr);
-            return(vl != vr);
+            return(_get() != _vr);
         }
+        // If the right value can be compared byte to byte
         else {
             const std::lock_guard<std::mutex> lock(m_mtx);
             int iSize(sizeof(T));
             T vl(_get());
-            T vr(_vr);
-            return (::memcmp(&vl, &vr, iSize) != 0);
+            return (::memcmp(&vl, &_vr, iSize) != 0);
         }
     }
 
 private:
+    /*
+    ** Setter and Getter
+    */
+
     // Setter
     void _set(T _val) {
         // If it is the first initialization
-        if (!m_bEmpty)
-            // Erase all data and dynamic arrays
-            _flush();
-        else
-            m_bEmpty = false;
+        if (!m_bEmpty) _flush(); // Erase all data and dynamic arrays
+        else m_bEmpty = false;
 
         // Generate a key with the same byte size as the variable
         _genKey();
         // Calculate the size of the bytes of the value
         int iSize(_sizeVal<T>(_val));
         // Cast the variable and store it into a byte array
-        _castVal<T>(_val, iSize);
+        uint8_t *ui8ValBuff(_castVal<T>(_val, iSize));
+        // Obfuscate the byte array
+        _obfuscateVal(ui8ValBuff, iSize);
+        // Packageing the byte array
+        _copyVal(ui8ValBuff, iSize);
+        // Release the byte array
+        delete[] ui8ValBuff;
     }
 
     // Getter
@@ -402,52 +434,113 @@ private:
         // Release
         delete[] ui8ValBuff;
 
-        // 
+        // Return the deobfuscated value
         return val;
     }
 
-    template <typename T>
-    void _return(T *_val, uint8_t *_ui8ValBuff, int _iValSize) {
-        ::memcpy(_val, _ui8ValBuff, _iValSize);
+
+    /*
+    ** Core
+    */
+
+    // Obfuscate a value in the format of an array of bytes
+    void _obfuscateVal(uint8_t *_ptrBuff, int _iValSize) {
+        // Retrieve the offset between the pointer and position of the key
+        // and the size of the key
+        int iKeyOffset(m_mvKeyOffset.get()),
+            iKeySize(m_mvKeySize.get());
+
+        // Get a working pointer pointing to the key
+        uint8_t *ui8KeyBuff(_ptrUnfold(m_mvKeyPtr, m_mvKeyHopNbr));
+
+        // Obfuscate the temporary byte array of the value
+        for (int i(0); i < _iValSize; ++i)
+            _ptrBuff[i] ^= ui8KeyBuff[iKeyOffset + (i % iKeySize)];
     }
 
-    template <>
-    void _return<std::string>(std::string *_val, uint8_t *_ui8ValBuff, int _iValSize) {
-        _val->assign(reinterpret_cast<char *>(_ui8ValBuff), _iValSize);
+    // Process a value in the format of an array of bytes,
+    // calculate or define its specifications (i.e. value length, noise around, etc),
+    // and XOR this array of bytes
+    void _copyVal(uint8_t *_ptrBuff, int _iValSize) {
+        // Define two random offset, and calculate the total size of the memory buffer
+        int iValOffset(::rand() % 24 + 8),
+            iValSize(_iValSize + iValOffset + 8 + ::rand() % 24);
+        // Define a random number of element of the linked list of pointers (hops)
+        uint8_t ui8ValHopNbr(::rand() % 7 + 1);
+
+        // Store in obfuscated variables those defined or calculated specifications
+        m_mvValOffset.set(iValOffset);
+        m_mvValSize.set(_iValSize);
+        m_mvValHopNbr.set(ui8ValHopNbr);
+
+        // Declare and initialize a dynamic array of bytes to store the obfuscated value
+        uint8_t *ui8ValBuff(new uint8_t[iValSize]);
+        ::memset(ui8ValBuff, 0, iValSize);
+
+        // Populate the sequence before the value with random noise data
+        for (int i(0); i < iValOffset; ++i)
+            ui8ValBuff[i] = ::rand() % 256;
+
+        // Populate the sequence after the value with random noise data
+        for (int i(iValOffset + iValSize); i < _iValSize; ++i)
+            ui8ValBuff[i] = ::rand() % 256;
+
+        // Copy the obfuscated value to the array of bytes
+        ::memcpy(ui8ValBuff + iValOffset, _ptrBuff, _iValSize);
+
+        // Create a linked list of pointers, the last pointing to the array of bytes
+        _ptrFold(ui8ValHopNbr, m_mvValPtr, ui8ValBuff);
     }
 
-    template<typename T, typename R>
-    void _return(std::vector<R> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
-        int iIndex(0),
-            iTypeSize(sizeof(R));
+    // Create a linked list of pointers with several hops,
+    // from the stored address to the memory buffer of the value or key
+    void _ptrFold(uint8_t _ui8HopNbr, CvarMasked<uintptr_t> &_mvVal, uint8_t *_ui8ptrBuff) {
+        // Declare and initialize the keeper of the last element of the linked list
+        uintptr_t addHopLast(0);
 
-        while (iIndex < _iValSize) {
-            R var;
-            ::memcpy(&var, _ui8ValBuff + iIndex, iTypeSize);
-            _val->push_back(var);
-            iIndex += iTypeSize;
+        // Declare and initialize a working pointer of the last stored address,
+        // actually the beginning of the linked list
+        uintptr_t *ptrHopLast(new uintptr_t);
+
+        // Retrieve and store the memory address of the first element of the linked list
+        addHopLast = reinterpret_cast<uintptr_t>(ptrHopLast);
+        _mvVal.set(addHopLast);
+
+        // For the number of hops defined before
+        for (int i(0); i < _ui8HopNbr - 1; ++i) {
+            // Declare and initialize a new pointer
+            uintptr_t *ptrTemp(new uintptr_t),
+            // Update the address of the last element of the linked list with the new created
+            *ptrHopLast = reinterpret_cast<uintptr_t *>(addHopLast);
+            // Update the stored address of the last element of the linked list with the new created
+            addHopLast = reinterpret_cast<uintptr_t>(ptrTemp);
+            // Make pointing the last linked element of the linked list to the new created node
+            *ptrHopLast = addHopLast;
         }
+
+        // Get the last node
+        uintptr_t *ptrTempLast(reinterpret_cast<uintptr_t *>(addHopLast));
+        // Make it pointing to the array of bytes of the value or key
+        *ptrTempLast = reinterpret_cast<uintptr_t>(_ui8ptrBuff);
     }
 
-    template<typename T, typename R, typename S>
-    void _return(std::map<R, S> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
-        int iTypeSizeR(sizeof(R)),
-            iTypeSizeS(sizeof(S)),
-            iIndex(0);
+    // Unravel the linked list of pointers with several hops,
+    // from the stored address to the memory buffer of the value or key
+    uint8_t *_ptrUnfold(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
+        // Declare and initialize the pointer used to unfold the linked list of pointers
+        uintptr_t *uiPtr(reinterpret_cast<uintptr_t *>(_mvPtr.get()));
+        // Retrieve the number of hops
+        uint8_t ui8HopNbr(_mvHopNbr.get());
 
-        while (iIndex < _iValSize) {
-            R key;
-            ::memcpy(&key, _ui8ValBuff + iIndex, iTypeSizeR);
-            iIndex += iTypeSizeR;
+        // Jump from a pointer to another
+        for (uint8_t i(0); i < ui8HopNbr; ++i)
+            uiPtr = reinterpret_cast<uintptr_t *>(*uiPtr);
 
-            S var;
-            ::memcpy(&var, _ui8ValBuff + iIndex, iTypeSizeS);
-            iIndex += iTypeSizeS;
-
-            _val->insert(std::pair<R, S>(key, var));
-        }
+        // Return the last pointer of the linked list
+        return reinterpret_cast<uint8_t *>(uiPtr);
     }
-    
+
+    // Reset all value's and key's specifications, and release their memory buffers
     void _flush() {
         _ptrFlush(m_mvValPtr, m_mvValHopNbr);
         _ptrFlush(m_mvKeyPtr, m_mvKeyHopNbr);
@@ -461,190 +554,254 @@ private:
         m_mvValPtr.set(0);
     }
 
+    // Release every hops of the linked list, and the memory buffer of the value
+    void _ptrFlush(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
+        // Declare and initialize the pointer used to unfold the linked list of pointers
+        uintptr_t *uiPtrCurr(reinterpret_cast<uintptr_t *>(_mvPtr.get()));
+        // Retrieve the number of hops
+        uint8_t ui8HopNbr(_mvHopNbr.get());
+
+        // Jump from a pointer to another
+        for (uint8_t i(0); i < ui8HopNbr; ++i) {
+            // Store the current address to a temporary pointer
+            uintptr_t *uiptrDel(uiPtrCurr);
+            // Go to the next pointer
+            uiPtrCurr = reinterpret_cast<uintptr_t *>(*uiPtrCurr);
+            // Release the memory of the temporary pointer
+            delete uiptrDel;
+        }
+
+        // Delete the first stored node of the linked list
+        delete[] uiPtrCurr;
+        uiPtrCurr = nullptr;
+    }
+
+    // Generate a key that will be used to obfuscate the stored value
+    void _genKey() {
+        // Retrieve the offset between the pointer and position of the key
+        // and the size of the key, and the allocated memory of the whole key package
+        int iKeyOffset(::rand() % 24 + 8),
+            iKeySize(::rand() % 32 + 32),
+            iAllocSize(iKeySize + iKeyOffset + 8 + ::rand() % 24);
+        // Define a random number of element of the linked list of pointers (hops)
+        uint8_t ui8KeyHopNbr(::rand() % 7 + 1);
+
+        // Store in obfuscated variables those defined or calculated specifications
+        m_mvKeyOffset.set(iKeyOffset);
+        m_mvKeySize.set(iKeySize);
+        m_mvKeyHopNbr.set(ui8KeyHopNbr);
+
+        // Declare and initialize a dynamic array of bytes to store the key
+        uint8_t *ui8KeyBuff(new uint8_t[iAllocSize]);
+        ::memset(ui8KeyBuff, 0, iAllocSize);
+
+        // Populate the memory buffer with random values (whose a sequence will be used as a key)
+        for (int i(0); i < iAllocSize; ++i)
+            ui8KeyBuff[i] = ::rand() % 256;
+
+        // Create a linked list of pointers, the last pointing to the array of bytes
+        _ptrFold(ui8KeyHopNbr, m_mvKeyPtr, ui8KeyBuff);
+    }
+    
+
+    /*
+    ** Template specialization of the returning data type
+    */
+
+    // Returns the majority of builtin types
+    template <typename T>
+    void _return(T *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+        ::memcpy(_val, _ui8ValBuff, _iValSize);
+    }
+
+    // Returns a std::string
+    template <>
+    void _return<std::string>(std::string *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+        _val->assign(reinterpret_cast<char *>(_ui8ValBuff), _iValSize);
+    }
+
+    // Returns a std::vector
+    template<typename T, typename R>
+    void _return(std::vector<R> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+        // Get the size of the type of the value
+        int iTypeSize(sizeof(R)),
+        // Declare and initialize the current index of the byte array
+            iIndex(0);
+
+        // For each elements of the std::vector
+        while (iIndex < _iValSize) {
+            // Declare a temporary value variable
+            R var;
+            // Retrieve the data from the memory buffer corresponding to the next value
+            ::memcpy(&var, _ui8ValBuff + iIndex, iTypeSize);
+            // Update the current index of the byte array with the current value size
+            iIndex += iTypeSize;
+            // Insert this value in the std::vector to return
+            _val->push_back(var);
+        }
+    }
+
+    // Returns a std::map
+    template<typename T, typename R, typename S>
+    void _return(std::map<R, S> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+        // Get the size of the type of the key
+        int iTypeSizeR(sizeof(R)),
+        // Get the size of the type of the value
+            iTypeSizeS(sizeof(S)),
+        // Declare and initialize the current index of the byte array
+            iIndex(0);
+
+        // For each elements of the std::map
+        while (iIndex < _iValSize) {
+            // Declare a temporary key variable
+            R key;
+            // Retrieve the data from the memory buffer corresponding to the next key
+            ::memcpy(&key, _ui8ValBuff + iIndex, iTypeSizeR);
+            // Update the current index of the byte array with the current key size
+            iIndex += iTypeSizeR;
+
+            // Declare a temporary value variable
+            S var;
+            // Retrieve the data from the memory buffer corresponding to the next value
+            ::memcpy(&var, _ui8ValBuff + iIndex, iTypeSizeS);
+            // Update the current index of the byte array with the current value size
+            iIndex += iTypeSizeS;
+
+            // Insert this pair of key/value in the std::map to return
+            _val->insert(std::pair<R, S>(key, var));
+        }
+    }
+
+
+    /*
+    ** Template specialization of the value size calculation
+    */
+
+    // Calculate the bytes size of the majority of the builtin types
     template<typename T>
     int _sizeVal(T _val) {
         return sizeof(_val);
     }
 
+    // Calculate the bytes size of a std::string
     template<>
     int _sizeVal<std::string>(std::string _val) {
         return static_cast<int>(_val.size());
     }
 
+    // Calculate the bytes size of a const char* string of characters
     template<>
     int _sizeVal<const char *>(const char *_val) {
         return static_cast<int>(::strlen(_val));
     }
 
+    // Calculate the bytes size of a std::vector
     template<typename T, typename R>
     int _sizeVal(std::vector<R> _val) {
         return static_cast<int>(_val.size() * sizeof(R));
     }
 
+    // Calculate the bytes size of a std::map
     template<typename T, typename R, typename S>
     int _sizeVal(std::map<R, S> _val) {
         return static_cast<int>(_val.size() * (sizeof(R) + sizeof(S)));
     }
 
-    void _genKey() {
-        int iKeySize(::rand() % 32 + 32),
-            iKeyOffset(::rand() % 24 + 8),
-            iAllocSize(iKeySize + iKeyOffset + 8 + ::rand() % 24);
-        uint8_t ui8KeyHopNbr(::rand() % 7 + 1);
 
-        m_mvKeyOffset.set(iKeyOffset);
-        m_mvKeySize.set(iKeySize);
-        m_mvKeyHopNbr.set(ui8KeyHopNbr);
-        
-        uint8_t *ui8KeyBuff(new uint8_t[iAllocSize]);
-        ::memset(ui8KeyBuff, 0, iAllocSize);
+    /*
+    ** Template specialization of the casting
+    ** from the value's type to a byte array
+    */
 
-        for (int i(0); i < iAllocSize; ++i)
-            ui8KeyBuff[i] = ::rand() % 256;
-        
-        _ptrFold(ui8KeyHopNbr, m_mvKeyPtr, ui8KeyBuff);
-    }
-
+    // Cast the majority of the builtin types to a byte array
     template<typename T>
-    void _castVal(T _val, int _iSize) {
+    uint8_t *_castVal(T _val, int _iSize) {
+        // Populate the bytes array with the value
         uint8_t *ui8ValBuff(new uint8_t[_iSize]);
         ::memset(ui8ValBuff, 0, _iSize);
         ::memcpy(ui8ValBuff, &_val, _iSize);
 
-        _copyVal(ui8ValBuff, _iSize);
-
-        delete[] ui8ValBuff;
+        // Return the casted builtin type in a bytes array format
+        return ui8ValBuff;
     }
-    
+
+    // Cast a std::string to a byte array
     template <>
-        void _castVal<std::string>(std::string _str, int _iSize) {
+    uint8_t *_castVal<std::string>(std::string _str, int _iSize) {
+        // Populate the bytes array with the value
         uint8_t *ui8ValBuff(new uint8_t[_iSize]);
         ::memset(ui8ValBuff, 0, _iSize);
         ::memcpy(ui8ValBuff, _str.data(), _iSize);
 
-        _copyVal(ui8ValBuff, _iSize);
-
-        delete[] ui8ValBuff;
+        // Return the casted std::string in a bytes array format
+        return ui8ValBuff;
     }
 
+    // Cast a const char* string of characters to a byte array
     template <>
-    void _castVal<const char *>(const char *_str, int _iSize) {
+    uint8_t *_castVal<const char *>(const char *_str, int _iSize) {
+        // Populate the bytes array with the value
         uint8_t *ui8ValBuff(new uint8_t[_iSize]);
         ::memset(ui8ValBuff, 0, _iSize);
         ::memcpy(ui8ValBuff, _str, _iSize);
 
-        _copyVal(ui8ValBuff, _iSize);
-
-        delete[] ui8ValBuff;
+        // Return the casted const char * in a bytes array format
+        return ui8ValBuff;
     }
 
+    // Cast a std::vector to a byte array
     template<typename T, typename R>
-    void _castVal(std::vector<R> _val, int _iSize) {
+    uint8_t *_castVal(std::vector<R> _val, int _iSize) {
+        // Declare and initialize the memory buffer to store the value
         uint8_t *ui8ValBuff(new uint8_t[_iSize]);
         ::memset(ui8ValBuff, 0, _iSize);
 
+        // Get the size of the type stored in the std::vector
         int iSizeType(sizeof(R));
+
+        // For each element of the std::vector
         for (int i(0); i < _val.size(); ++i)
             ::memcpy(ui8ValBuff + (i * iSizeType), &_val[i], iSizeType);
 
-        _copyVal(ui8ValBuff, _iSize);
-
-        delete[] ui8ValBuff;
+        // Return the casted std::vector in a bytes array format
+        return ui8ValBuff;
     }
 
+    // Cast a std::map to a byte array
     template<typename T, typename R, typename S>
-    void _castVal(std::map<R, S> _val, int _iSize) {
+    uint8_t *_castVal(std::map<R, S> _val, int _iSize) {
+        // Declare and initialize the memory buffer to store the value
         uint8_t *ui8ValBuff(new uint8_t[_iSize]);
         ::memset(ui8ValBuff, 0, _iSize);
 
+        // Get the size of the type of the key
         int iSizeTypeR(sizeof(R)),
+        // Get the size of the type of the value
             iSizeTypeS(sizeof(S)),
+        // Declare and initialize the current index of the byte array
             iIndex(0);
-        
+
+        // For each element of the std::map
         for (const auto &[key, value] : _val) {
+            // Populate the bytes array with the next key
             ::memcpy(ui8ValBuff + iIndex, &key, iSizeTypeR);
+            // Update the current index of the byte array with the current key size
             iIndex += iSizeTypeR;
+
+            // Populate the bytes array with the next value
             ::memcpy(ui8ValBuff + iIndex, &value, iSizeTypeS);
+            // Update the current index of the byte array with the current value size
             iIndex += iSizeTypeS;
         }
 
-        _copyVal(ui8ValBuff, _iSize);
-
-        delete[] ui8ValBuff;
+        // Return the casted std::map in a bytes array format
+        return ui8ValBuff;
     }
 
-    void _copyVal(uint8_t *_ptrBuff, int _iValSize) {
-        int iValOffset(::rand() % 24 + 8),
-            iValSize(_iValSize + iValOffset + 8 + ::rand() % 24);
-        uint8_t ui8ValHopNbr(::rand() % 7 + 1);
-        
-        m_mvValOffset.set(iValOffset);
-        m_mvValSize.set(_iValSize);
-        m_mvValHopNbr.set(ui8ValHopNbr);
 
-        uint8_t *ui8ValBuff(new uint8_t[iValSize]);
-        ::memset(ui8ValBuff, 0, iValSize);
-
-        for (int i(0); i < iValOffset; ++i)
-            ui8ValBuff[i] = ::rand() % 256;
-
-        for (int i(iValOffset + iValSize); i < _iValSize; ++i)
-            ui8ValBuff[i] = ::rand() % 256;
-
-        ::memcpy(ui8ValBuff + iValOffset, _ptrBuff, _iValSize);
-
-        int iKeyOffset(m_mvKeyOffset.get()),
-            iKeySize(m_mvKeySize.get());
-
-        uint8_t *ui8KeyBuff(_ptrUnfold(m_mvKeyPtr, m_mvKeyHopNbr));
-
-        for (int i(0); i < _iValSize; ++i)
-            ui8ValBuff[iValOffset + i] ^= ui8KeyBuff[iKeyOffset + (i % iKeySize)];
-
-        _ptrFold(ui8ValHopNbr, m_mvValPtr, ui8ValBuff);
-    }
-
-    void _ptrFlush(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
-        uintptr_t *uiPtrCurr(reinterpret_cast<uintptr_t *>(_mvPtr.get()));
-        uint8_t ui8HopNbr(_mvHopNbr.get());
-
-        for (uint8_t i(0); i < ui8HopNbr; ++i) {
-            uintptr_t *uiptrDel(uiPtrCurr);
-            uiPtrCurr = reinterpret_cast<uintptr_t *>(*uiPtrCurr);
-            delete uiptrDel;
-        }
-
-        delete[] uiPtrCurr;
-        uiPtrCurr = nullptr;
-    }
-
-    void _ptrFold(uint8_t _ui8HopNbr, CvarMasked<uintptr_t> &_mvVal, uint8_t *_ui8ptrBuff) {
-        uintptr_t addHopLast(0);
-        
-        uintptr_t *ptrTempInit(new uintptr_t);
-        addHopLast = reinterpret_cast<uintptr_t>(ptrTempInit);
-        _mvVal.set(addHopLast);
-
-        for (int i(0); i < _ui8HopNbr - 1; ++i) {
-            uintptr_t *ptrTemp(new uintptr_t),
-                      *ptrHopLast(reinterpret_cast<uintptr_t *>(addHopLast));
-            addHopLast = reinterpret_cast<uintptr_t>(ptrTemp);
-            *ptrHopLast = addHopLast;
-        }
-
-        uintptr_t *ptrTempLast(reinterpret_cast<uintptr_t*>(addHopLast));
-        *ptrTempLast = reinterpret_cast<uintptr_t>(_ui8ptrBuff);
-    }
-
-    uint8_t *_ptrUnfold(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
-        uintptr_t *uiPtr(reinterpret_cast<uintptr_t*>(_mvPtr.get()));
-        uint8_t ui8HopNbr(_mvHopNbr.get());
-
-        for (uint8_t i(0); i < ui8HopNbr; ++i)
-            uiPtr = reinterpret_cast<uintptr_t*>(*uiPtr);
-
-        return reinterpret_cast<uint8_t*>(uiPtr);
-    }
+    /*
+    ** Member variables
+    */
 
     std::mutex                 m_mtx;
     CvarMasked<uint32_t>       m_mvKeySize,
