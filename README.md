@@ -5,7 +5,8 @@ It is useful as memory scanner mitigation.
 &nbsp;
 
 # HOW IT WORKS
-Check the [header file](cpp/CvarObfuscated.hpp#L10-L66).
+Check the [header file](cpp/CvarObfuscated.hpp#L10-L66) for explanations.\
+There are also [some examples](https://github.com/PhilJbt/mescamit/blob/0c02b2953f05bc2d5540a034f3bed8ee11b7a01a/cpp/CvarObfuscated_unitaryTests.cpp#L553-L668) and [unitary tests](https://github.com/PhilJbt/mescamit/blob/0c02b2953f05bc2d5540a034f3bed8ee11b7a01a/cpp/CvarObfuscated_unitaryTests.cpp#L5-L542).
 
 &nbsp;
 
