@@ -5,7 +5,7 @@ It is useful as memory scanner mitigation.
 &nbsp;
 
 # HOW IT WORKS
-Check the [header file](cpp/CvarObfuscated.hpp#L10-L59).
+Check the [header file](cpp/CvarObfuscated.hpp#L10-L66).
 
 &nbsp;
 
