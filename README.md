@@ -4,6 +4,11 @@ It is useful as memory scanner mitigation.
 
 &nbsp;
 
+# HOW IT WORKS
+Check the [header file](cpp/CvarObfuscated.hpp#L10-L59).
+
+&nbsp;
+
 # USAGE
 Remember to initialize 'srand' at startup.
 
