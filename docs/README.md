@@ -67,12 +67,12 @@ ovint32 >> 2
 
 // std::vector
 CvarObfuscated<std::vector<int64_t>> ovVec;
-ovVec = std::vector<int64_t> { INT64_MAX, 0x00000101, INT64_MIN };
+ovVec = std::vector<int64_t> { INT64_MAX, 0x00000101, 123 };
 std::vector<int64_t> vecRet(ovVec);
 
 // std::map
 CvarObfuscated<std::map<uint8_t, int64_t>> ovMap;
-ovMap = std::map<uint8_t, int64_t> { {0, INT64_MIN}, {2, 0x00001100}, {1, INT64_MAX} };
+ovMap = std::map<uint8_t, int64_t> { {0, INT64_MIN}, {2, 321}, {1, 0x00001100} };
 std::map<uint8_t, int64_t> retMap(ovMap);
 
 // Custom classes and structs
