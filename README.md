@@ -16,7 +16,7 @@ There are also [some examples](cpp/CvarObfuscated_unitaryTests.cpp#L553-L668) an
 ```cpp
 // Initialization
 CvarObfuscated<void>::init(true); // 'True' will initialize ::srand()
-                                  // void init(bool _bSrandInit = false)
+                                  // void init([bool _bSrandInit])
 
 // Declaration
 CvarObfuscated<std::string> ovStr;
