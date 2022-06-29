@@ -13,9 +13,11 @@ There are also [some examples](cpp/CvarObfuscated_unitaryTests.cpp#L553-L668) an
 &nbsp;
 
 # USAGE
-Remember to initialize 'srand' at startup.
-
 ```cpp
+// Initialization
+CvarObfuscated<void>::init(true); // 'True' will initialize ::srand()
+                                  // void init(bool _bSrandInit = false)
+
 // Declaration
 CvarObfuscated<std::string> ovStr;
 CvarObfuscated<float> ovFlt;
