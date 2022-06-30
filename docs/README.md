@@ -6,7 +6,7 @@ It is useful as memory scanner mitigation.
 
 # HOW IT WORKS
 Each value stored is *XOR* obfuscated with a generated key, as its pointer and its specifications values (size, offset, etc). Also, the stored address is not pointing directly to the memory buffer of the value.\
-Check the [header file](../cpp/CvarObfuscated.hpp#L10-L68) for explanations.\
+Check the [header file](../cpp/CvarObfuscated.hpp#L10-L77) for explanations.\
 \
 There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L553-L668) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L5-L542).
 
