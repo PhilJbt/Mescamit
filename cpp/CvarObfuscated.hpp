@@ -27,7 +27,7 @@
     II. VALUE and KEY specifications
 
         VALUE and KEY has both 4 specifications (i.e. a POINTER address, a number of HOPs, a LENGTH and an OFFSET).
-        Each 4 specifications are stored in an array of pointers, randomly ordered.
+        The 4 specifications are stored in a randomly ordered array of pointers, and are obfuscated with their unique XOR key.
 
         +--- A. KEY or VALUE POINTER (Especs_KeyPtr or Especs_ValPtr)
         |
@@ -44,7 +44,7 @@
                                             |
                                             +--- E. NOISE (random data)
 
-        A. The address POINTER, casted to an integer, is obfuscated with a unique XOR key.
+        A. The address POINTER, casted to an integer.
 
         B. The address POINTER stored does not point directly to the VALUE memory buffer,
            but point to several other pointers (as a linked list, each node is called HOP).
