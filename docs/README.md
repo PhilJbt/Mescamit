@@ -25,7 +25,7 @@ CvarObfuscated<int> ovInt;
 CvarObfuscated<uint64_t> ovUint64;
 CvarObfuscated<bool> ovBool;
 
-// Disable the renewall of the key when calling the set() function
+// Disable the renewal of the key when calling the set() function
 ovStr.renewAtSet(false);
 
 // Assignment
