@@ -16,38 +16,47 @@
 * class CvarObfuscated
 **
 
-    The CvarObfuscated class stores a VALUE into an obfuscated array,
-    and generated a randomly generated KEY of a random length for byte to byte XORing.
+    I. GENERAL
     
-    Two random length sequences with data NOISE are added as prefix and postfix of the stored VALUE.
+        The CvarObfuscated class stores a VALUE into an obfuscated array,
+        and generated a random length KEY to byte XORing the VALUE.
+
+        The stored VALUE is never directly deobfuscated, only the returned value is.
+
     
-    Also, the address POINTER stored does not point directly to the VALUE memory buffer,
-    but point to several other pointers (as a linked list, each node is called HOP),
-    the value of each pointer corresponds to the length of the jump necessary to reach the next one.
-    The last of the list is the VALUE or KEY array.
-    
-    Using the same process, a randomly generated KEY is used to reverse the obfuscation of the stored VALUE.
+    II. VALUE and KEY specifications
 
-    The stored VALUE is never directly deobfuscated, only the returned value is.
+        VALUE and KEY has both 4 specifications (i.e. a POINTER address, a number of HOPs, a LENGTH and an OFFSET).
+        Each 4 specifications are stored in an array of pointers, randomly ordered.
 
-    Four informations are stored for each VALUE and KEY (CvarMasked).
-        1. The POINTER address casted to an integer (Especs_ValPtr and Especs_KeyPtr)
-        2. The number of HOP from the first pointer to the VALUE or KEY memory buffer (Especs_ValHopNbr and Especs_KeyHopNbr)
-        3. The OFFSET in bytes between the pointing POINTER  (Especs_ValOffset and Especs_KeyOffset)
-        4. The LENGTH in bytes of the array (Especs_ValSize and Especs_KeySize)
-
-        +--- 1. KEY or VALUE POINTER (Especs_KeyPtr or Especs_ValPtr)
+        +--- A. KEY or VALUE POINTER (Especs_KeyPtr or Especs_ValPtr)
         |
-        |                  +--- 2. HOP number (Especs_ValHopNbr and Especs_KeyHopNbr)
+        |                  +--- B. HOP number (Especs_ValHopNbr or Especs_KeyHopNbr)
         |                  |
-        |                  |                    +--- 4. KEY or VALUE OFFSET (Especs_ValOffset or Especs_KeyOffset)
+        |                  |                    +--- C. OFFSET for the KEY or VALUE (Especs_ValOffset or Especs_KeyOffset)
         |                  |                    |
         |                  |                    v
-        v                  v            +--...--+--------------+--...--+
+        v                  v            +--...--+-----...------+--...--+
         POINTER -> HOP -> ... -> HOP -> | NOISE | KEY or VALUE | NOISE |
-                                        +--...--+--------------+--...--+
-                                                <-+---------->
-                                                  | 3. KEY or VALUE LENGTH (Especs_ValSize or Especs_KeySize)
+                                        +--...--+-----...------+--...--+
+                                            ^    <--+--------->
+                                            |       | D. LENGTH of the KEY or VALUE (Especs_ValSize or Especs_KeySize)
+                                            |
+                                            +--- E. NOISE (random data)
+
+        A. The address POINTER, casted to an integer, is obfuscated with a unique XOR key.
+
+        B. The address POINTER stored does not point directly to the VALUE memory buffer,
+           but point to several other pointers (as a linked list, each node is called HOP).
+           The value of each pointer corresponds to the offset in bits to reach the next pointer address.
+           The last of the list is the VALUE or KEY memory buffer.
+
+        C. The OFFSET in bytes between the buffer POINTER and the start of the VALUE or KEY memory buffer
+
+        D. The LENGTH in bytes of the VALUE or KEY memory buffer
+
+        E. Two random length sequences with data NOISE are added as prefix and postfix of the stored VALUE.
+
 
 
 **
