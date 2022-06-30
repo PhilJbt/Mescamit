@@ -542,9 +542,9 @@ void unitaryTest() {
     }
 }
 
+
 int main(void) {
-    unsigned long seed(static_cast<unsigned long>(::clock()) * static_cast<unsigned long>(::time(NULL)) * static_cast<unsigned long>(::_getpid()));
-    ::srand(seed);
+    CvarObfuscated<void>::init(true);
 
 
     unitaryTest();

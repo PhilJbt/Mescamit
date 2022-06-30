@@ -22,30 +22,32 @@
     Two random length sequences with data NOISE are added as prefix and postfix of the stored VALUE.
     
     Also, the address POINTER stored does not point directly to the VALUE memory buffer,
-    but point to several other pointers (as a linked list, each node is called HOP). The last of the list is the VALUE or KEY array.
+    but point to several other pointers (as a linked list, each node is called HOP),
+    the value of each pointer corresponds to the length of the jump necessary to reach the next one.
+    The last of the list is the VALUE or KEY array.
     
     Using the same process, a randomly generated KEY is used to reverse the obfuscation of the stored VALUE.
 
     The stored VALUE is never directly deobfuscated, only the returned value is.
 
     Four informations are stored for each VALUE and KEY (CvarMasked).
-        1. The POINTER address casted to an integer (m_mvValPtr and m_mvKeyPtr)
-        2. The number of HOP from the first pointer to the VALUE or KEY memory buffer (m_mvValHopNbr and m_mvKeyHopNbr)
-        3. The OFFSET in bytes between the pointing POINTER  (m_mvValOffset and m_mvKeyOffset)
-        4. The LENGTH in bytes of the array (m_mvValSize and m_mvKeySize)
+        1. The POINTER address casted to an integer (Especs_ValPtr and Especs_KeyPtr)
+        2. The number of HOP from the first pointer to the VALUE or KEY memory buffer (Especs_ValHopNbr and Especs_KeyHopNbr)
+        3. The OFFSET in bytes between the pointing POINTER  (Especs_ValOffset and Especs_KeyOffset)
+        4. The LENGTH in bytes of the array (Especs_ValSize and Especs_KeySize)
 
-        +--- 1. KEY or VALUE POINTER (m_mvKeyPtr or m_mvValPtr)
+        +--- 1. KEY or VALUE POINTER (Especs_KeyPtr or Especs_ValPtr)
         |
-        |                  +--- 2. HOP number (m_mvValHopNbr and m_mvKeyHopNbr)
+        |                  +--- 2. HOP number (Especs_ValHopNbr and Especs_KeyHopNbr)
         |                  |
-        |                  |                    +--- 4. KEY or VALUE OFFSET (m_mvKeyOffset or m_mvValOffset)
+        |                  |                    +--- 4. KEY or VALUE OFFSET (Especs_ValOffset or Especs_KeyOffset)
         |                  |                    |
         |                  |                    v
         v                  v            +--...--+--------------+--...--+
         POINTER -> HOP -> ... -> HOP -> | NOISE | KEY or VALUE | NOISE |
                                         +--...--+--------------+--...--+
                                                 <-+---------->
-                                                  | 3. KEY or VALUE LENGTH (m_mvKeySize or m_mvValSize)
+                                                  | 3. KEY or VALUE LENGTH (Especs_ValSize or Especs_KeySize)
 
 
 **
@@ -55,7 +57,7 @@
 * class CvarMasked
 **
 
-    KEY is the same length of VALUE, both are builtin type (mostly uintptr_t or uint32_t).
+    KEY is the same length of VALUE, both are builtin type (mostly intptr_t or uint32_t).
     VALUE uses KEY and the XOR ^ logical operation to be obfuscated / deobfuscated.
 
     +----...----+
@@ -76,6 +78,7 @@
 #include <memory>
 #include <type_traits>
 #include <map>
+#include <any>
 
 
 /*
@@ -108,6 +111,7 @@ private:
 ** CvarObfuscated
 * Obfuscate variables or structs from memory scanners
 */
+
 template <typename T>
 class CvarObfuscated {
 public:
@@ -222,19 +226,19 @@ public:
     */
 
     // & Bitwise AND
-    T operator & (int _iMask) {
+    T operator & (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         return (_get() & _iMask);
     }
 
     // | Bitwise OR
-    T operator | (int _iMask) {
+    T operator | (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         return (_get() | _iMask);
     }
 
     // ^ Bitwise XOR
-    T operator ^ (int _iMask) {
+    T operator ^ (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() ^ _iMask);
         return val;
@@ -258,7 +262,7 @@ public:
     */
 
     // &= Bitwise Compound Assignment AND
-    T operator &= (int _iMask) {
+    T operator &= (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() & _iMask);
         _set(val);
@@ -266,7 +270,7 @@ public:
     }
 
     // ^= Bitwise Compound Assignment XOR
-    T operator ^= (int _iMask) {
+    T operator ^= (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() ^ _iMask);
         _set(val);
@@ -274,7 +278,7 @@ public:
     }
 
     // |= Bitwise Compound Assignment OR
-    T operator |= (int _iMask) {
+    T operator |= (T _iMask) {
         const std::lock_guard<std::mutex> lock(m_mtx);
         T val(_get() | _iMask);
         _set(val);
@@ -385,6 +389,9 @@ private:
         if (!m_bEmpty) _flush(); // Erase all data and dynamic arrays
         else m_bEmpty = false;
 
+        // Allocate the dynamic variables to store the value's and key's specifications
+        _alloc();
+
         // Generate a key with the same byte size as the variable
         _genKey();
         // Calculate the size of the bytes of the value
@@ -405,15 +412,15 @@ private:
         if (m_bEmpty) throw("The obfuscated variable has not yet been initialized.");
 
         // Retrieve stored value and key specifications
-        int iValSize(m_mvValSize.get()),
-            iValOffset(m_mvValOffset.get()),
-            iKeySize(m_mvKeySize.get()),
-            iKeyOffset(m_mvKeyOffset.get());
+        int iValSize(_getUint32MaskedVar(Especs_ValSize)->get()),
+            iValOffset(_getUint32MaskedVar(Especs_ValOffset)->get()),
+            iKeySize(_getUint32MaskedVar(Especs_KeySize)->get()),
+            iKeyOffset(_getUint32MaskedVar(Especs_KeyOffset)->get());
 
         // Cast the value and the key addresses integers to working pointers
-        uint8_t *ptrValBuff(_ptrUnfold(m_mvValPtr, m_mvValHopNbr)),
-                *ptrKeyBuff(_ptrUnfold(m_mvKeyPtr, m_mvKeyHopNbr));
-
+        uint8_t *ptrValBuff(_ptrUnfold(_getIntptrMaskedVar(Especs_ValPtr), _getUint8MaskedVar(Especs_ValHopNbr))),
+                *ptrKeyBuff(_ptrUnfold(_getIntptrMaskedVar(Especs_KeyPtr), _getUint8MaskedVar(Especs_KeyHopNbr)));
+        
         // Shift the pointer positions to their payloads
         ptrValBuff += iValOffset;
         ptrKeyBuff += iKeyOffset;
@@ -424,7 +431,7 @@ private:
         ::memcpy(ui8ValBuff, ptrValBuff, iValSize);
 
         // Proceed for each byte of the value to a xor logical operation with the key
-        for (int i(0); i < iValSize; ++i)
+        for (uint8_t i(0); i < iValSize; ++i)
             ui8ValBuff[i] ^= ptrKeyBuff[i % iKeySize];
 
         // Cast the deobfuscated array to a variable of the expected type
@@ -443,15 +450,56 @@ private:
     ** Core
     */
 
+    // Specifications enumerator, used to require a specific data
+    // in the randomly sorted array of masked variables
+    enum Especs_ : uint8_t {
+        Especs_KeySize,
+        Especs_KeyOffset,
+        Especs_ValSize,
+        Especs_ValOffset,
+        Especs_KeyHopNbr,
+        Especs_ValHopNbr,
+        Especs_KeyPtr,
+        Especs_ValPtr,
+        Especs__MAX
+    };
+
+    // Generate a key that will be used to obfuscate the stored value
+    void _genKey() {
+        // Retrieve the offset between the pointer and position of the key
+        // and the size of the key, and the allocated memory of the whole key package
+        int iKeyOffset(::rand() % 24 + 8),
+            iKeySize(::rand() % 32 + 32),
+            iAllocSize(iKeySize + iKeyOffset + 8 + ::rand() % 24);
+        // Define a random number of element of the linked list of pointers (hops)
+        uint8_t ui8KeyHopNbr(::rand() % 7 + 1);
+
+        // Store in obfuscated variables those defined or calculated specifications
+        _getUint32MaskedVar(Especs_KeyOffset)->set(iKeyOffset);
+        _getUint32MaskedVar(Especs_KeySize)->set(iKeySize);
+        _getUint8MaskedVar(Especs_KeyHopNbr)->set(ui8KeyHopNbr);
+
+        // Declare and initialize a dynamic array of bytes to store the key
+        uint8_t *ui8KeyBuff(new uint8_t[iAllocSize]);
+        ::memset(ui8KeyBuff, 0, iAllocSize);
+
+        // Populate the memory buffer with random values (whose a sequence will be used as a key)
+        for (int i(0); i < iAllocSize; ++i)
+            ui8KeyBuff[i] = ::rand() % 256;
+
+        // Create a linked list of pointers, the last pointing to the array of bytes
+        _ptrFold(ui8KeyHopNbr, _getIntptrMaskedVar(Especs_KeyPtr), ui8KeyBuff);
+    }
+
     // Obfuscate a value in the format of an array of bytes
     void _obfuscateVal(uint8_t *_ptrBuff, int _iValSize) {
         // Retrieve the offset between the pointer and position of the key
         // and the size of the key
-        int iKeyOffset(m_mvKeyOffset.get()),
-            iKeySize(m_mvKeySize.get());
+        int iKeyOffset(_getUint32MaskedVar(Especs_KeyOffset)->get()),
+            iKeySize(_getUint32MaskedVar(Especs_KeySize)->get());
 
         // Get a working pointer pointing to the key
-        uint8_t *ui8KeyBuff(_ptrUnfold(m_mvKeyPtr, m_mvKeyHopNbr));
+        uint8_t *ui8KeyBuff(_ptrUnfold(_getIntptrMaskedVar(Especs_KeyPtr), _getUint8MaskedVar(Especs_KeyHopNbr)));
 
         // Obfuscate the temporary byte array of the value
         for (int i(0); i < _iValSize; ++i)
@@ -469,9 +517,9 @@ private:
         uint8_t ui8ValHopNbr(::rand() % 7 + 1);
 
         // Store in obfuscated variables those defined or calculated specifications
-        m_mvValOffset.set(iValOffset);
-        m_mvValSize.set(_iValSize);
-        m_mvValHopNbr.set(ui8ValHopNbr);
+        _getUint32MaskedVar(Especs_ValOffset)->set(iValOffset);
+        _getUint32MaskedVar(Especs_ValSize)->set(_iValSize);
+        _getUint8MaskedVar(Especs_ValHopNbr)->set(ui8ValHopNbr);
 
         // Declare and initialize a dynamic array of bytes to store the obfuscated value
         uint8_t *ui8ValBuff(new uint8_t[iValSize]);
@@ -489,84 +537,199 @@ private:
         ::memcpy(ui8ValBuff + iValOffset, _ptrBuff, _iValSize);
 
         // Create a linked list of pointers, the last pointing to the array of bytes
-        _ptrFold(ui8ValHopNbr, m_mvValPtr, ui8ValBuff);
+        _ptrFold(ui8ValHopNbr, _getIntptrMaskedVar(Especs_ValPtr), ui8ValBuff);
     }
 
     // Create a linked list of pointers with several hops,
     // from the stored address to the memory buffer of the value or key
-    void _ptrFold(uint8_t _ui8HopNbr, CvarMasked<uintptr_t> &_mvVal, uint8_t *_ui8ptrBuff) {
+    void _ptrFold(uint8_t _ui8HopNbr, CvarMasked<intptr_t> *_mvVal, uint8_t *_ui8ptrBuff) {
         // Declare and initialize the keeper of the last element of the linked list
-        uintptr_t addHopLast(0);
+        intptr_t addHopLast(0);
 
         // Declare and initialize a working pointer of the last stored address,
         // actually the beginning of the linked list
-        uintptr_t *ptrHopLast(new uintptr_t);
+        intptr_t *ptrHopLast(new intptr_t);
 
         // Retrieve and store the memory address of the first element of the linked list
-        addHopLast = reinterpret_cast<uintptr_t>(ptrHopLast);
-        _mvVal.set(addHopLast);
+        addHopLast = reinterpret_cast<intptr_t>(ptrHopLast);
+        _mvVal->set(addHopLast);
 
         // For the number of hops defined before
         for (int i(0); i < _ui8HopNbr - 1; ++i) {
             // Declare and initialize a new pointer
-            uintptr_t *ptrTemp(new uintptr_t),
-            // Update the address of the last element of the linked list with the new created
-            *ptrHopLast = reinterpret_cast<uintptr_t *>(addHopLast);
+            intptr_t *ptrTemp(new intptr_t);
+            // Update the pointer address of the last element of the linked list with the new created
+            ptrHopLast = reinterpret_cast<intptr_t *>(addHopLast);
+            // Temporary store the new last element address
+            intptr_t addHopLastNew(reinterpret_cast<intptr_t>(ptrTemp));
+            // Store the difference between the two last pointers addresses
+            *ptrHopLast = addHopLast - addHopLastNew;
             // Update the stored address of the last element of the linked list with the new created
-            addHopLast = reinterpret_cast<uintptr_t>(ptrTemp);
-            // Make pointing the last linked element of the linked list to the new created node
-            *ptrHopLast = addHopLast;
+            addHopLast = addHopLastNew;
         }
 
         // Get the last node
-        uintptr_t *ptrTempLast(reinterpret_cast<uintptr_t *>(addHopLast));
+        intptr_t *ptrTempLast(reinterpret_cast<intptr_t *>(addHopLast));
         // Make it pointing to the array of bytes of the value or key
-        *ptrTempLast = reinterpret_cast<uintptr_t>(_ui8ptrBuff);
+        *ptrTempLast = addHopLast - reinterpret_cast<intptr_t>(_ui8ptrBuff);
     }
 
     // Unravel the linked list of pointers with several hops,
     // from the stored address to the memory buffer of the value or key
-    uint8_t *_ptrUnfold(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
+    uint8_t *_ptrUnfold(CvarMasked<intptr_t> *_mvPtr, CvarMasked<uint8_t> *_mvHopNbr) {
         // Declare and initialize the pointer used to unfold the linked list of pointers
-        uintptr_t *uiPtr(reinterpret_cast<uintptr_t *>(_mvPtr.get()));
+        intptr_t *uiPtr(reinterpret_cast<intptr_t *>(_mvPtr->get()));
         // Retrieve the number of hops
-        uint8_t ui8HopNbr(_mvHopNbr.get());
+        uint8_t ui8HopNbr(_mvHopNbr->get());
 
-        // Jump from a pointer to another
-        for (uint8_t i(0); i < ui8HopNbr; ++i)
-            uiPtr = reinterpret_cast<uintptr_t *>(*uiPtr);
+        // Jump from a pointer to another, the memory buffer value is the jump length
+        for (int i(0); i < ui8HopNbr; ++i)
+            _ptrUnfoldWalker(&uiPtr);
 
         // Return the last pointer of the linked list
         return reinterpret_cast<uint8_t *>(uiPtr);
     }
 
+    // Jump from a pointer address to another
+    void _ptrUnfoldWalker(intptr_t **_uiPtr) {
+        intptr_t iDiff(0);
+        try {
+            // Difference is in bits, divide by 8 to get the offset value in bytes
+            iDiff = (**_uiPtr) / 8;
+        }
+        catch (std::logic_error e) {
+            throw std::runtime_error(e.what());
+        }
+        catch (std::overflow_error &e) {
+            throw std::runtime_error(e.what());
+        }
+        // The jump length is depending on the value on this address
+        (*_uiPtr) -= iDiff;
+    }
+
+    // Retrieve a specific CvarMasked<uint32_t> in the randomly sorted array of masked variables
+    CvarMasked<uint32_t> *_getUint32MaskedVar(Especs_ _eType) {
+        int iIndex(_getMaskedVarID(_eType));
+        return reinterpret_cast<CvarMasked<uint32_t> *>(m_arrVarAddr[iIndex]);
+    }
+
+    // Retrieve a specific CvarMasked<uint8_t> in the randomly sorted array of masked variables
+    CvarMasked<uint8_t> *_getUint8MaskedVar(Especs_ _eType) {
+        int iIndex(_getMaskedVarID(_eType));
+        return reinterpret_cast<CvarMasked<uint8_t> *>(m_arrVarAddr[iIndex]);
+    }
+
+    // Retrieve a specific CvarMasked<intptr_t> in the randomly sorted array of masked variables
+    CvarMasked<intptr_t> *_getIntptrMaskedVar(Especs_ _eType) {
+        int iIndex(_getMaskedVarID(_eType));
+        return reinterpret_cast<CvarMasked<intptr_t> *>(m_arrVarAddr[iIndex]);
+    }
+
+    // Retrieve the index of a specific data in the randomly sorted array of masked variables
+    int _getMaskedVarID(Especs_ _eType) {
+        for (int i(0); i < 8; ++i)
+            if (_eType == m_arrConvert[i])
+                return i;
+        throw std::runtime_error("This type of specification does not exist.");
+    }
+
+    // Allocate the dynamic variables for value's and key's specifications
+    void _alloc() {
+        // Allocate the array containing all specifications masked vars memory addresses,
+        // and the array to translate a type name into an index
+        m_arrVarAddr = new intptr_t * [8];
+        m_arrConvert = new uint8_t[8];
+
+        // Declare and initialize the vector of specifications types
+        // Its used to randomly populate the both arrays above-mentioned
+        std::vector<uint8_t> vecSpecs {
+            Especs_KeySize,   Especs_KeyOffset, Especs_ValSize, Especs_ValOffset,
+            Especs_KeyHopNbr, Especs_ValHopNbr,
+            Especs_KeyPtr,    Especs_ValPtr
+        };
+
+        // For every specifications
+        for (int i(0); i < 8; ++i) {
+            // Select a random index in the specifications vector
+            int     iSelect(::rand() % vecSpecs.size());
+            // Get the specification type enum value
+            uint8_t ui8Select(vecSpecs[iSelect]);
+
+            // Erase this select element from the vector
+            vecSpecs.erase(vecSpecs.begin() + iSelect);
+
+            // This selected specification type is now binded to the actual ID 'i'
+            m_arrConvert[i] = ui8Select;
+
+            // Depending on the type of the specification type
+            switch (ui8Select) {
+                // CvarMasked < uint32_t >
+                case Especs_KeySize:
+                case Especs_KeyOffset:
+                case Especs_ValSize:
+                case Especs_ValOffset:
+                {
+                    // Allocate a new masked var of the proper template specialization
+                    CvarMasked<uint32_t> *ptrNew(new CvarMasked<uint32_t>());
+                    // Store the address of this new masked var
+                    m_arrVarAddr[i] = reinterpret_cast<intptr_t *>(ptrNew);
+                }
+                break;
+
+                // CvarMasked < uint8_t >
+                case Especs_KeyHopNbr:
+                case Especs_ValHopNbr:
+                {
+                    // Allocate a new masked var of the proper template specialization
+                    CvarMasked<uint8_t> *ptrNew(new CvarMasked<uint8_t>());
+                    // Store the address of this new masked var
+                    m_arrVarAddr[i] = reinterpret_cast<intptr_t *>(ptrNew);
+                }
+                break;
+
+                // CvarMasked < intptr_t >
+                case Especs_KeyPtr:
+                case Especs_ValPtr:
+                {
+                    // Allocate a new masked var of the proper template specialization
+                    CvarMasked<intptr_t> *ptrNew(new CvarMasked<intptr_t>());
+                    // Store the address of this new masked var
+                    m_arrVarAddr[i] = reinterpret_cast<intptr_t *>(ptrNew);
+                }
+                break;
+            }
+        }
+    }
+
     // Reset all value's and key's specifications, and release their memory buffers
     void _flush() {
-        _ptrFlush(m_mvValPtr, m_mvValHopNbr);
-        _ptrFlush(m_mvKeyPtr, m_mvKeyHopNbr);
-        m_mvKeySize.set(0);
-        m_mvKeyOffset.set(0);
-        m_mvValSize.set(0);
-        m_mvValOffset.set(0);
-        m_mvKeyHopNbr.set(0);
-        m_mvValHopNbr.set(0);
-        m_mvKeyPtr.set(0);
-        m_mvValPtr.set(0);
+        // Unfold the linked list, release every hops, and release the value or key buffer
+        _ptrFlush(_getIntptrMaskedVar(Especs_ValPtr), _getUint8MaskedVar(Especs_ValHopNbr));
+        _ptrFlush(_getIntptrMaskedVar(Especs_KeyPtr), _getUint8MaskedVar(Especs_KeyHopNbr));
+
+        // Release all specifications data buffers
+        for (int i(0); i < 4; ++i) delete _getUint32MaskedVar(static_cast<Especs_>(i));
+        for (int i(4); i < 6; ++i) delete _getUint8MaskedVar(static_cast<Especs_>(i));
+        for (int i(6); i < 8; ++i) delete _getIntptrMaskedVar(static_cast<Especs_>(i));
+
+        // Release the specification masked var address randomizer
+        delete[] m_arrVarAddr;
+        delete[] m_arrConvert;
     }
 
     // Release every hops of the linked list, and the memory buffer of the value
-    void _ptrFlush(CvarMasked<uintptr_t> &_mvPtr, CvarMasked<uint8_t> &_mvHopNbr) {
+    void _ptrFlush(CvarMasked<intptr_t> *_mvPtr, CvarMasked<uint8_t> *_mvHopNbr) {
         // Declare and initialize the pointer used to unfold the linked list of pointers
-        uintptr_t *uiPtrCurr(reinterpret_cast<uintptr_t *>(_mvPtr.get()));
+        intptr_t *uiPtrCurr(reinterpret_cast<intptr_t *>(_mvPtr->get()));
         // Retrieve the number of hops
-        uint8_t ui8HopNbr(_mvHopNbr.get());
+        uint8_t ui8HopNbr(_mvHopNbr->get());
 
         // Jump from a pointer to another
         for (uint8_t i(0); i < ui8HopNbr; ++i) {
             // Store the current address to a temporary pointer
-            uintptr_t *uiptrDel(uiPtrCurr);
+            intptr_t *uiptrDel(uiPtrCurr);
             // Go to the next pointer
-            uiPtrCurr = reinterpret_cast<uintptr_t *>(*uiPtrCurr);
+            _ptrUnfoldWalker(&uiPtrCurr);
             // Release the memory of the temporary pointer
             delete uiptrDel;
         }
@@ -574,33 +737,6 @@ private:
         // Delete the first stored node of the linked list
         delete[] uiPtrCurr;
         uiPtrCurr = nullptr;
-    }
-
-    // Generate a key that will be used to obfuscate the stored value
-    void _genKey() {
-        // Retrieve the offset between the pointer and position of the key
-        // and the size of the key, and the allocated memory of the whole key package
-        int iKeyOffset(::rand() % 24 + 8),
-            iKeySize(::rand() % 32 + 32),
-            iAllocSize(iKeySize + iKeyOffset + 8 + ::rand() % 24);
-        // Define a random number of element of the linked list of pointers (hops)
-        uint8_t ui8KeyHopNbr(::rand() % 7 + 1);
-
-        // Store in obfuscated variables those defined or calculated specifications
-        m_mvKeyOffset.set(iKeyOffset);
-        m_mvKeySize.set(iKeySize);
-        m_mvKeyHopNbr.set(ui8KeyHopNbr);
-
-        // Declare and initialize a dynamic array of bytes to store the key
-        uint8_t *ui8KeyBuff(new uint8_t[iAllocSize]);
-        ::memset(ui8KeyBuff, 0, iAllocSize);
-
-        // Populate the memory buffer with random values (whose a sequence will be used as a key)
-        for (int i(0); i < iAllocSize; ++i)
-            ui8KeyBuff[i] = ::rand() % 256;
-
-        // Create a linked list of pointers, the last pointing to the array of bytes
-        _ptrFold(ui8KeyHopNbr, m_mvKeyPtr, ui8KeyBuff);
     }
     
 
@@ -803,14 +939,20 @@ private:
     ** Member variables
     */
 
-    std::mutex                 m_mtx;
-    CvarMasked<uint32_t>       m_mvKeySize,
-                               m_mvKeyOffset,
-                               m_mvValSize,
-                               m_mvValOffset;
-    CvarMasked<uint8_t>        m_mvKeyHopNbr,
-                               m_mvValHopNbr;
-    CvarMasked<uintptr_t>      m_mvKeyPtr,
-                               m_mvValPtr;
-    std::atomic<bool>          m_bEmpty = true;
+    std::mutex          m_mtx;
+    std::atomic<bool>   m_bEmpty = true;
+    intptr_t          **m_arrVarAddr;
+    uint8_t            *m_arrConvert;
+};
+
+template <>
+class CvarObfuscated<void> {
+public:
+    // Initialization
+    static void init(bool _bSrandInit = false) {
+        if (_bSrandInit) {
+            unsigned long seed(static_cast<unsigned long>(::clock()) * static_cast<unsigned long>(::time(NULL)) * static_cast<unsigned long>(::_getpid()));
+            ::srand(seed);
+        }
+    }
 };
