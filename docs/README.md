@@ -8,7 +8,7 @@ It is useful as memory scanner mitigation.
 Each value stored is *XOR* obfuscated with a generated key, as its pointer and its specifications values (size, offset, etc). Also, the stored address is not pointing directly to the memory buffer of the value.\
 Check the [header file](../cpp/CvarObfuscated.hpp#L09-L74) for explanations.\
 \
-There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L643-L758) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L9-L559).
+There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L612-L727) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L9-L543).
 
 &nbsp;
 
@@ -24,9 +24,6 @@ CvarObfuscated<float> ovFlt;
 CvarObfuscated<int> ovInt;
 CvarObfuscated<uint64_t> ovUint64;
 CvarObfuscated<bool> ovBool;
-
-// Enable performance mode (disable the renewal of the key, and some randomization when calling the set() function)
-ovStr.perfModeEnable(true);
 
 // Assignment
 ovStr = "Hello";
