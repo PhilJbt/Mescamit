@@ -562,7 +562,7 @@ public:
         auto endMc = std::chrono::time_point_cast<std::chrono::microseconds>(end_point).time_since_epoch().count();
         auto begMs = std::chrono::time_point_cast<std::chrono::milliseconds>(start_point).time_since_epoch().count();
         auto endMs = std::chrono::time_point_cast<std::chrono::milliseconds>(end_point).time_since_epoch().count();
-        std::cout << std::to_string(_i) << " elements = " << (endMc - begMc) << " microseconds (" << (endMs - begMs) << " milliseconds)" << std::endl;
+        std::cout << std::to_string(_i) << " elements (1 set, 1 add, 2 get) = " << (endMc - begMc) << " microseconds (" << (endMs - begMs) << " milliseconds)" << std::endl;
     }
 };
 
