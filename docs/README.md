@@ -118,6 +118,7 @@ Stest sRet1(ovStruct);
 ```
 2022-07-01T17:46:50+02:00
 Running memscan.exe
+DoNotOptimize enabled
 Run on (8 X 3655.17 MHz CPU s)
 CPU Caches:
   L1 Data 32 KiB (x8)
