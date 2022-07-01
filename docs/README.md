@@ -25,8 +25,8 @@ CvarObfuscated<int> ovInt;
 CvarObfuscated<uint64_t> ovUint64;
 CvarObfuscated<bool> ovBool;
 
-// Disable the renewal of the key when calling the set() function
-ovStr.renewAtSet(false);
+// Enable performance mode (disable the renewal of the key, and some randomization when calling the set() function)
+ovStr.perfModeEnable(true);
 
 // Assignment
 ovStr = "Hello";
