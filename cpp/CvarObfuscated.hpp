@@ -153,12 +153,6 @@ public:
         return _get();
     }
 
-    // Renew at set()
-    void perfModeEnable(bool _bPerfMode) {
-        const std::lock_guard<std::mutex> lock(m_mtx);
-        m_bPerfMode = _bPerfMode;
-    }
-
 
     /*
     ** Assignment Operators

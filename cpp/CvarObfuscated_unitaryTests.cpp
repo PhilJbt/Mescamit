@@ -37,7 +37,6 @@ void unitaryTest() {
         int32_t ret2 = ovTest;
         if (ret2 != INT32_MAX) throw std::runtime_error("TEST int32_t #2 FAILED");
 
-        ovTest.perfModeEnable(false);
         int32_t i32Rand(::rand() % INT32_MAX);
         ovTest = i32Rand;
         int32_t ret3 = ovTest;
@@ -93,12 +92,10 @@ void unitaryTest() {
         std::string ret1 = ovTest;
         if (::strcmp(ret1.c_str(), "cED66") != 0) throw std::runtime_error("TEST STD::STRING #1 FAILED");
 
-        ovTest.perfModeEnable(false);
         ovTest += "Q9jr7QWycx";
         std::string ret2 = ovTest;
         if (::strcmp(ret2.c_str(), "cED66Q9jr7QWycx") != 0) throw std::runtime_error("TEST STD::STRING #2 FAILED");
 
-        ovTest.perfModeEnable(true);
         ovTest = "1YESX9x";
         std::string ret3 = ovTest;
         if (::strcmp(ret3.c_str(), "1YESX9x") != 0) throw std::runtime_error("TEST STD::STRING #3 FAILED");
@@ -128,7 +125,6 @@ void unitaryTest() {
         if (::strcmp(ret1.str, "KPpQk") != 0) throw std::runtime_error("TEST struct_test1 #1:C FAILED");
         if (ret1.arrI[0] != 1 || ret1.arrI[1] != 2 || ret1.arrI[2] != 3) throw std::runtime_error("TEST struct_test1 #1:D FAILED");
 
-        ovTest.perfModeEnable(false);
         stTest.i = 0;
         stTest.f = .0f;
         ::strcpy_s(stTest.str, "tTl4f785e7");
@@ -142,7 +138,6 @@ void unitaryTest() {
         if (::strcmp(ret2.str, "tTl4f785e7") != 0) throw std::runtime_error("TEST struct_test1 #2:C FAILED");
         if (ret2.arrI[0] != INT_MIN || ret2.arrI[1] != INT_MAX || ret2.arrI[2] != 0) throw std::runtime_error("TEST struct_test1 #2:D FAILED");
 
-        ovTest.perfModeEnable(true);
         stTest.i = INT_MAX;
         stTest.f = FLT_MAX;
         ::strcpy_s(stTest.str, "sJhhMAp");
@@ -177,7 +172,6 @@ void unitaryTest() {
     }
     {
         CvarObfuscated<int32_t> ovA;
-        ovA.perfModeEnable(false);
 
 
         ovA = 50;
@@ -188,7 +182,6 @@ void unitaryTest() {
         if (iRet1 != 49) throw std::runtime_error("TEST --var #1 FAILED");
 
 
-        ovA.perfModeEnable(true);
         ovA = 60;
         ovA--;
 
@@ -255,7 +248,6 @@ void unitaryTest() {
     }
     {
         CvarObfuscated<int32_t> ovA;
-        ovA.perfModeEnable(false);
 
 
         ovA = 10;
@@ -318,7 +310,6 @@ void unitaryTest() {
         if (iRet1 != 0x00001101) throw std::runtime_error("TEST var |= #1 FAILED");
 
 
-        ovA.perfModeEnable(false);
         ovA = 0x00011100;
         ovA |= 0x00001110;
 
@@ -347,7 +338,6 @@ void unitaryTest() {
     }
     {
         CvarObfuscated<int32_t> ovA;
-        ovA.perfModeEnable(false);
 
         ovA = 0x00000101;
         ovA ^= 0x00001001;
@@ -381,9 +371,7 @@ void unitaryTest() {
 
 
         ovA = 789;
-        ovA.perfModeEnable(false);
         ovB = 348;
-        ovB.perfModeEnable(false);
 
         int32_t iRet2(ovA + ovB);
         int32_t iA2(ovA);
@@ -476,7 +464,6 @@ void unitaryTest() {
     }
     {
         CvarObfuscated<int32_t> ovA, ovB;
-        ovA.perfModeEnable(false);
 
         ovA = 0x00000101;
         ovB = 0x00001001;
@@ -490,7 +477,6 @@ void unitaryTest() {
         if (iRet1 != 0x00001101) throw std::runtime_error("TEST var | var #1:C FAILED");
 
 
-        ovA.perfModeEnable(true);
         ovA = 0x00010101;
         ovB = 0x01000100;
 
@@ -504,7 +490,6 @@ void unitaryTest() {
     }
     {
         CvarObfuscated<int32_t> ovA, ovB;
-        ovA.perfModeEnable(false);
 
 
         ovA = 0x00000101;
@@ -518,7 +503,6 @@ void unitaryTest() {
         if (iB1 != 0x00001001) throw std::runtime_error("TEST var & var #3:B FAILED");
         if (iRet1 != 0x00000001) throw std::runtime_error("TEST var & var #1:C FAILED");
 
-        ovB.perfModeEnable(false);
         ovA = 0x00010101;
         ovB = 0x01000100;
 
@@ -588,30 +572,15 @@ std::chrono::time_point<std::chrono::high_resolution_clock> Cperfbench::start_po
 /*
 ** Benchmark function
 *
-* BENCHMARK
-* Intel i7-9700K @ 3.60Ghz
-* 100000 x (1 set + 1 add + 2 get) = 664 milliseconds
-* 100000 x (1 set + 1 add + 2 get) = 468 milliseconds
 */
 void benchmark() {
     // Benchmark
     int strRet(0);
 
     int i = 0;
+    CvarObfuscated<int> ovVariable;
     Cperfbench::start();
     for (i = 0; i < 100000; ++i) {
-        CvarObfuscated<int> ovVariable;
-        ovVariable = rand() % INT_MAX;
-        strRet = ovVariable;
-        ovVariable += rand() % INT_MAX;
-        strRet = ovVariable;
-    }
-    Cperfbench::stop(i);
-
-    Cperfbench::start();
-    for (i = 0; i < 100000; ++i) {
-        CvarObfuscated<int> ovVariable;
-        ovVariable.perfModeEnable(false);
         ovVariable = rand() % INT_MAX;
         strRet = ovVariable;
         ovVariable += rand() % INT_MAX;
@@ -634,7 +603,7 @@ int main(void) {
     unitaryTest();
 
 
-
+    system("pause");
     benchmark();
 
 
@@ -757,7 +726,7 @@ int main(void) {
         std::map<uint8_t, int64_t> vecA1(ovA);
     }
 
-
+    system("pause");
 
     return 0;
 }
