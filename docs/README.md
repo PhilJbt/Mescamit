@@ -1,6 +1,15 @@
+# INDEX
+
+| [PRESENSATION](#presentation) &#65293; [HOW IT WORKS](#how-it-works) &#65293; [USAGE](#usage) &#65293; [BENCHMARK](#benchmark) |
+:----------------------------------------------------------: |
+
+&nbsp;
+
 # PRESENTATION
 **Mescamit** is a thread safe variable obfuscator written in C++20.\
 It is useful as memory scanner mitigation.
+
+###### [Return to index](#index)
 
 &nbsp;
 
@@ -9,6 +18,8 @@ Each value stored is *XOR* obfuscated with a generated key, as its pointer and i
 Check the [header file](../cpp/CvarObfuscated.hpp#L09-L74) for explanations.\
 \
 There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L612-L727) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L9-L543).
+
+###### [Return to index](#index)
 
 &nbsp;
 
@@ -96,5 +107,31 @@ CvarObfuscated<struct_test2> ovStruct;
 ovStruct = myTest;
 
 Stest sRet1(ovStruct);
+```
+
+###### [Return to index](#index)
+
+&nbsp;
+
+# BENCHMARK
 
 ```
+2022-07-01T17:46:50+02:00
+Running memscan.exe
+Run on (8 X 3655.17 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x8)
+  L1 Instruction 32 KiB (x8)
+  L2 Unified 256 KiB (x8)
+  L3 Unified 12288 KiB (x1)
+-----------------------------------------------------------------------------
+Benchmark                                   Time             CPU   Iterations
+-----------------------------------------------------------------------------
+CvarObfuscated<int> ovVariable;          21.7 ns         21.5 ns     32000000
+~CvarObfuscated()                        2810 ns         2825 ns       248889
+ovVariable = rand() % INT_MAX;           2884 ns         2888 ns       248889
+iRet = ovVariable;                        219 ns          219 ns      3136000
+ovVariable += rand() % INT_MAX;          3076 ns         3115 ns       235789
+```
+
+###### [Return to index](#index)
