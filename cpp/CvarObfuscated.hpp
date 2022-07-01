@@ -488,8 +488,8 @@ private:
 
     // Generate a key that will be used to obfuscate the stored value
     void _genKey() {
-        // Generate a key if m_bPerfMode is set, or if it has not yet been populated
-        if (m_bPerfMode || m_bEmpty) {
+        // Generate a key if m_bPerfMode is disabled, or if it has not yet been populated
+        if (!m_bPerfMode || m_bEmpty) {
             // Retrieve the offset between the pointer and position of the key
             // and the size of the key, and the allocated memory of the whole key package
             int iKeyOffset(::rand() % 24 + 8),
@@ -662,8 +662,8 @@ private:
 
     // Allocate the dynamic variables for value's and key's specifications
     void _alloc() {
-        // If renewall at set() is disabled, and has already been populated one time
-        if (!m_bPerfMode && !m_bEmpty)
+        // If performance mode is disabled, and has already been populated one time
+        if (m_bPerfMode && !m_bEmpty)
             return;
 
         // Allocate the array containing all specifications masked vars memory addresses,
@@ -736,7 +736,7 @@ private:
             // Unfold the linked list, release every hops, and release the value or key buffer
             SspecsVal *ptrSpecsVal(reinterpret_cast<SspecsVal *>(_retrieveSpecs(Especs_::Especs_Val)));
             _ptrFlush(&ptrSpecsVal->m_mvPtr, &ptrSpecsVal->m_mvHopNbr);
-            if (m_bPerfMode || _bForce) {
+            if (!m_bPerfMode || _bForce) {
                 SspecsKey *ptrSpecsKey(reinterpret_cast<SspecsKey *>(_retrieveSpecs(Especs_::Especs_Key)));
                 _ptrFlush(&ptrSpecsKey->m_mvPtr, &ptrSpecsKey->m_mvHopNbr);
 
@@ -960,7 +960,7 @@ private:
 
     std::mutex          m_mtx;
     std::atomic<bool>   m_bEmpty    = true;
-    bool                m_bPerfMode = true;
+    bool                m_bPerfMode = false;
     intptr_t          **m_arrVarAddr;
     uint8_t            *m_arrConvert;
 };
