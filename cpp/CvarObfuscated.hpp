@@ -207,15 +207,14 @@ public:
 
     // += Addition
     T operator += (const T &_val) {
+        const std::lock_guard<std::mutex> lock(m_mtx);
         if constexpr (std::is_same_v<T, std::string>) {
-            const std::lock_guard<std::mutex> lock(m_mtx);
             std::string val(_get());
             val.append(_val);
             _set(val);
             return val;
         }
         else {
-            const std::lock_guard<std::mutex> lock(m_mtx);
             T val(_get());
             val += _val;
             _set(val);
@@ -427,7 +426,8 @@ private:
     // Getter
     T _get() {
         // Throws an error if the user tries to get a value before initialization
-        if (m_bEmpty) throw("The obfuscated variable has not yet been initialized.");
+        if (m_bEmpty)
+            _set(T());
 
         // Retrieve stored value and key specifications
         SspecsVal *ptrSpecsVal(reinterpret_cast<SspecsVal*>(_retrieveSpecs(Especs_::Especs_Val)));
@@ -726,7 +726,7 @@ private:
     // Reset all value's and key's specifications, and release their memory buffers
     void _flush(bool _bForce = false) {
         // If already populated
-        if (!m_bEmpty || _bForce) {
+        if (!m_bEmpty || (_bForce && !m_bEmpty)) {
             // Unfold the linked list, release every hops, and release the value or key buffer
             SspecsVal *ptrSpecsVal(reinterpret_cast<SspecsVal *>(_retrieveSpecs(Especs_::Especs_Val)));
             _ptrFlush(&ptrSpecsVal->m_mvPtr, &ptrSpecsVal->m_mvHopNbr);
@@ -953,10 +953,10 @@ private:
     */
 
     std::mutex          m_mtx;
-    std::atomic<bool>   m_bEmpty    = true;
-    bool                m_bPerfMode = false;
-    intptr_t          **m_arrVarAddr;
-    uint8_t            *m_arrConvert;
+    std::atomic<bool>   m_bEmpty     = true;
+    bool                m_bPerfMode  = false;
+    intptr_t          **m_arrVarAddr = nullptr;
+    uint8_t            *m_arrConvert = nullptr;
 };
 
 template <>
