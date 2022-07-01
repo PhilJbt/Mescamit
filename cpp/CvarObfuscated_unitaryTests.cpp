@@ -594,7 +594,7 @@ void benchmark() {
 ** Entry point
 *
 */
-int qzd() {//int main(void) {
+int main(void) {
     // Initialize the CvarObfuscated class
     CvarObfuscated<void>::init(true);
 
@@ -603,7 +603,7 @@ int qzd() {//int main(void) {
     unitaryTest();
 
 
-    system("pause");
+
     benchmark();
 
 
@@ -726,7 +726,7 @@ int qzd() {//int main(void) {
         std::map<uint8_t, int64_t> vecA1(ovA);
     }
 
-    system("pause");
+ 
 
     return 0;
 }
