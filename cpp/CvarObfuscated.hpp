@@ -405,7 +405,7 @@ private:
     */
 
     // Setter
-    void _set(T _val) {
+    void _set(const T &_val) {
         // If not empty, erase all data and dynamic arrays
         _flush();
         
@@ -513,7 +513,7 @@ private:
     }
 
     // Obfuscate a value in the format of an array of bytes
-    void _obfuscateVal(uint8_t *_ptrBuff, int _iValSize) {
+    void _obfuscateVal(uint8_t *_ptrBuff, const int &_iValSize) {
         // Retrieve the offset between the pointer and position of the key and the size of the key
         SspecsKey *ptrSpecsKey(reinterpret_cast<SspecsKey *>(_retrieveSpecs(Especs_::Especs_Key)));
         int iKeyOffset(ptrSpecsKey->m_mvOffset.get()),
@@ -531,7 +531,7 @@ private:
     // Process a value in the format of an array of bytes,
     // calculate or define its specifications (i.e. value length, noise around, etc),
     // and XOR this array of bytes
-    void _copyVal(T _val) {
+    void _copyVal(const T &_val) {
         // Calculate the size of the bytes of the value
         int iSize(_sizeVal<T>(_val));
 
@@ -567,7 +567,7 @@ private:
     }
 
     // Populate the value buffer with padding noise data sequence
-    void _copyVal_noisePadding(int _iBeg, int _iEng, uint8_t *_ui8Ptr) {
+    void _copyVal_noisePadding(const int &_iBeg, const int &_iEng, uint8_t *_ui8Ptr) {
         for (int i(_iBeg); i < _iEng; ++i)
             _ui8Ptr[i] = ::rand() % 256;
     }
@@ -640,13 +640,13 @@ private:
     }
     
     // Retrieve a specific CvarMasked var in the randomly sorted array of masked variables
-    intptr_t *_retrieveSpecs(Especs_ _eType) {
+    intptr_t *_retrieveSpecs(const Especs_ _eType) {
         int iIndex(_getSpecsVarID(_eType));
         return reinterpret_cast<intptr_t *>(m_arrVarAddr[iIndex]);
     }
 
     // Retrieve the index of a specific data in the randomly sorted array of masked variables
-    int _getSpecsVarID(Especs_ _eType) {
+    int _getSpecsVarID(const Especs_ _eType) {
         for (int i(0); i < 8; ++i)
             if (_eType == m_arrConvert[i])
                 return i;
@@ -723,7 +723,7 @@ private:
     }
 
     // Reset all value's and key's specifications, and release their memory buffers
-    void _flush(bool _bForce = false) {
+    void _flush(const bool _bForce = false) {
         // If already populated
         if (!m_bEmpty || (_bForce && !m_bEmpty)) {
             // Unfold the linked list, release every hops, and release the value or key buffer
@@ -777,19 +777,19 @@ private:
 
     // Returns the majority of builtin types
     template <typename T>
-    void _return(T *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+    void _return(T *_val, const uint8_t *_ui8ValBuff, const int &_iValSize) {
         ::memcpy(_val, _ui8ValBuff, _iValSize);
     }
 
     // Returns a std::string
     template <>
-    void _return<std::string>(std::string *_val, uint8_t *_ui8ValBuff, int _iValSize) {
-        _val->assign(reinterpret_cast<char *>(_ui8ValBuff), _iValSize);
+    void _return<std::string>(std::string *_val, const uint8_t *_ui8ValBuff, const int &_iValSize) {
+        _val->assign(reinterpret_cast<const char *>(_ui8ValBuff), _iValSize);
     }
 
     // Returns a std::vector
     template<typename T, typename R>
-    void _return(std::vector<R> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+    void _return(std::vector<R> *_val, const uint8_t *_ui8ValBuff, const int &_iValSize) {
         // Get the size of the type of the value
         int iTypeSize(sizeof(R)),
         // Declare and initialize the current index of the byte array
@@ -810,7 +810,7 @@ private:
 
     // Returns a std::map
     template<typename T, typename R, typename S>
-    void _return(std::map<R, S> *_val, uint8_t *_ui8ValBuff, int _iValSize) {
+    void _return(std::map<R, S> *_val, const uint8_t *_ui8ValBuff, const int &_iValSize) {
         // Get the size of the type of the key
         int iTypeSizeR(sizeof(R)),
         // Get the size of the type of the value
@@ -846,13 +846,13 @@ private:
 
     // Calculate the bytes size of the majority of the builtin types
     template<typename T>
-    int _sizeVal(T _val) {
+    int _sizeVal(const T _val) {
         return sizeof(_val);
     }
 
     // Calculate the bytes size of a std::string
     template<>
-    int _sizeVal<std::string>(std::string _val) {
+    int _sizeVal<const std::string>(const std::string _val) {
         return static_cast<int>(_val.size());
     }
 
@@ -864,13 +864,13 @@ private:
 
     // Calculate the bytes size of a std::vector
     template<typename T, typename R>
-    int _sizeVal(std::vector<R> _val) {
+    int _sizeVal(const std::vector<R> _val) {
         return static_cast<int>(_val.size() * sizeof(R));
     }
 
     // Calculate the bytes size of a std::map
     template<typename T, typename R, typename S>
-    int _sizeVal(std::map<R, S> _val) {
+    int _sizeVal(const std::map<R, S> _val) {
         return static_cast<int>(_val.size() * (sizeof(R) + sizeof(S)));
     }
 
@@ -882,7 +882,7 @@ private:
 
     // Cast the majority of the builtin types to a byte array
     template<typename T>
-    void _castVal(T _val, int _iSize, uint8_t *_ui8Ptr) {
+    void _castVal(const T _val, const int _iSize, uint8_t *_ui8Ptr) {
         // Populate the bytes array with the value
         ::memset(_ui8Ptr, 0, _iSize);
         ::memcpy(_ui8Ptr, &_val, _iSize);
@@ -890,7 +890,7 @@ private:
 
     // Cast a std::string to a byte array
     template <>
-    void _castVal<std::string>(std::string _str, int _iSize, uint8_t *_ui8Ptr) {
+    void _castVal<std::string>(const std::string _str, const int _iSize, uint8_t *_ui8Ptr) {
         // Populate the bytes array with the value
         ::memset(_ui8Ptr, 0, _iSize);
         ::memcpy(_ui8Ptr, _str.data(), _iSize);
@@ -898,7 +898,7 @@ private:
 
     // Cast a const char* string of characters to a byte array
     template <>
-    void _castVal<const char *>(const char *_str, int _iSize, uint8_t *_ui8Ptr) {
+    void _castVal<const char *>(const char *_str, const int _iSize, uint8_t *_ui8Ptr) {
         // Populate the bytes array with the value
         ::memset(_ui8Ptr, 0, _iSize);
         ::memcpy(_ui8Ptr, _str, _iSize);
@@ -906,7 +906,7 @@ private:
 
     // Cast a std::vector to a byte array
     template<typename T, typename R>
-    void _castVal(std::vector<R> _val, int _iSize, uint8_t *_ui8Ptr) {
+    void _castVal(const std::vector<R> _val, const int _iSize, uint8_t *_ui8Ptr) {
         // Initialize the memory buffer to store the value
         ::memset(_ui8Ptr, 0, _iSize);
 
@@ -921,7 +921,7 @@ private:
 
     // Cast a std::map to a byte array
     template<typename T, typename R, typename S>
-    void _castVal(std::map<R, S> _val, int _iSize, uint8_t *_ui8Ptr) {
+    void _castVal(const std::map<R, S> _val, const int _iSize, uint8_t *_ui8Ptr) {
         // Initialize the memory buffer to store the value
         ::memset(_ui8Ptr, 0, _iSize);
 
@@ -962,7 +962,7 @@ template <>
 class CvarObfuscated<void> {
 public:
     // Initialization
-    static void init(bool _bSrandInit = false) {
+    static void init(const bool _bSrandInit = false) {
         if (_bSrandInit) {
             unsigned long seed(static_cast<unsigned long>(::clock()) * static_cast<unsigned long>(::time(NULL)) * static_cast<unsigned long>(::_getpid()));
             ::srand(seed);
