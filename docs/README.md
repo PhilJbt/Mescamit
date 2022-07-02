@@ -17,7 +17,7 @@ It is useful as memory scanner mitigation.
 Each value stored is *XOR* obfuscated with a generated key, as its pointer and its specifications values (size, offset, etc). Also, the stored address is not pointing directly to the memory buffer of the value.\
 Check the [header file](../cpp/CvarObfuscated.hpp#L09-L74) for explanations.\
 \
-There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L612-L727) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L9-L543).
+There are also [some examples](../cpp/CvarObfuscated_unitaryTests.cpp#L568-L684) and [unitary tests](../cpp/CvarObfuscated_unitaryTests.cpp#L15-L549).
 
 ###### [Return to index](#index)
 
