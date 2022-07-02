@@ -1,6 +1,12 @@
 #include "CvarObfuscated.hpp"
 
 
+#if !defined(SK_BENCHMARK)
+    #define execute (main)
+#endif
+
+
+
 /*
 ** Unitary tests
 * 
@@ -544,67 +550,18 @@ void unitaryTest() {
 }
 
 
-/*
-** Class to create benchmark tests
-*
-*/
-class Cperfbench {
-public:
-    static std::chrono::time_point<std::chrono::high_resolution_clock> start_point, end_point;
-
-    static void start() {
-        start_point = std::chrono::high_resolution_clock::now();
-    }
-
-    static void stop(int _i) {
-        end_point = std::chrono::high_resolution_clock::now();
-        auto begMc = std::chrono::time_point_cast<std::chrono::microseconds>(start_point).time_since_epoch().count();
-        auto endMc = std::chrono::time_point_cast<std::chrono::microseconds>(end_point).time_since_epoch().count();
-        auto begMs = std::chrono::time_point_cast<std::chrono::milliseconds>(start_point).time_since_epoch().count();
-        auto endMs = std::chrono::time_point_cast<std::chrono::milliseconds>(end_point).time_since_epoch().count();
-        std::cout << std::to_string(_i) << " elements (1 set, 1 add, 2 get) = " << (endMc - begMc) << " microseconds (" << (endMs - begMs) << " milliseconds)" << std::endl;
-    }
-};
-
-std::chrono::time_point<std::chrono::high_resolution_clock> Cperfbench::start_point, Cperfbench::end_point;
-
-
-/*
-** Benchmark function
-*
-*/
-void benchmark() {
-    // Benchmark
-    int strRet(0);
-
-    int i = 0;
-    CvarObfuscated<int> ovVariable;
-    Cperfbench::start();
-    for (i = 0; i < 100000; ++i) {
-        ovVariable = rand() % INT_MAX;
-        strRet = ovVariable;
-        ovVariable += rand() % INT_MAX;
-        strRet = ovVariable;
-    }
-    Cperfbench::stop(i);
-}
-
 
 /*
 ** Entry point
 *
 */
-int main(void) {
+int execute(void) {
     // Initialize the CvarObfuscated class
     CvarObfuscated<void>::init(true);
 
 
 
     unitaryTest();
-
-
-
-    benchmark();
 
 
 
@@ -726,7 +683,7 @@ int main(void) {
         std::map<uint8_t, int64_t> vecA1(ovA);
     }
 
- 
+
 
     return 0;
 }
