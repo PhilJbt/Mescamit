@@ -9,7 +9,7 @@
 
 # PRESENTATION
 **Mescamit** is a thread safe variable obfuscator written in C++20.\
-It is useful as memory scanner mitigation.
+It is useful as memory scanning mitigation.
 
 ###### [Return to index](#index)
 
@@ -90,7 +90,7 @@ std::map<uint8_t, int64_t> retMap(ovMap);
 
 // Custom classes and structs
 // MUST have only fixed size members
-struct struct_test2 {
+struct Stest {
     int   i = 0;
     float f = .0f;
     char  str[10] { '\0' };
@@ -99,13 +99,13 @@ struct struct_test2 {
 
 Stest myTest;
 myTest.i = INT_MIN;
-structTest.f = FLT_MIN;
+myTest.f = FLT_MIN;
 ::strcpy_s(myTest.str, "xINSF1Lv");
 myTest.arrI[0] = INT_MAX;
 myTest.arrI[1] = 0;
 myTest.arrI[2] = INT_MIN;
 
-CvarObfuscated<struct_test2> ovStruct;
+CvarObfuscated<Stest> ovStruct;
 ovStruct = myTest;
 
 Stest sRet1(ovStruct);
