@@ -1,4 +1,4 @@
-![MeScaMit logo](logo_v1.png)
+![MeScaMit logo](logo_v2.png)
 
 # INDEX
 
